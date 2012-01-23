@@ -152,61 +152,13 @@ void loop()
   }
   else {
     #ifdef USB_COMM
-      int msg_len = 6, len, old_len = 0, c = -1, x, message_complete = 0;
-      char tmp[400];
-      byte msg[msg_len];
-      byte parsed_msg[msg_len];
-      byte complete_msg[msg_len];
+      byte msg[3];
       if (acc.isConnected()) {
-        do {
-          len = acc.read(msg, msg_len, 1);
-          sprintf(tmp, "msg len: %d, buffer contains [%d,%d,%d,%d,%d,%d]", len, msg[0], msg[1], msg[2], msg[3], msg[4], msg[5]);        
-          Serial.println(tmp);
-
-          for(x = 0; x < len; x++) {
-            if(msg[x] == 255) {
-              c = 0;
-            }
-            if(c >= 0) {
-              parsed_msg[c] = msg[c];
-              c++;
-              if(c == msg_len) {
-                message_complete = 1;
-                c = - 1;
-                for(x = 0; x < msg_len; x++) {
-                  complete_msg[x] = parsed_msg[x];
-                }
-              }
-            }
-          }
-        } while(len > 0);
-        if(message_complete == 1) {  
-          // pan
-          if((complete_msg[1] + ((complete_msg[2] - complete_msg[1]) / 2)) < 40) {
-            suggested_dir = FACE_LEFT;
-          }
-          else if((complete_msg[1] + ((complete_msg[2] - complete_msg[1]) / 2)) > 60) {
-            suggested_dir = FACE_RIGHT;
-          }
-          else {
-            suggested_dir = FACE_CENTER;
-          }
-          // tilt
-          if((complete_msg[3] + ((complete_msg[4] - complete_msg[3]) / 2)) < 40) {
-            suggested_tilt_dir = FACE_DOWN;
-          }
-          else if((complete_msg[3] + ((complete_msg[4] - complete_msg[3]) / 2)) > 60) {
-            suggested_tilt_dir = FACE_UP;
-          }
-          else {
-            suggested_tilt_dir = FACE_CENTER;
-          }
-        }
-        else {
-          Serial.println("incomplete message");
-          suggested_dir = NO_FACE;
-          suggested_tilt_dir = NO_FACE;
-        }
+        int len = acc.read(msg, sizeof(msg), 1);
+	if (len > 0) {
+          suggested_dir = msg[0];
+          suggested_tilt_dir = msg[1];
+	}
       }
       else {
         Serial.println("accessory disconnected");
