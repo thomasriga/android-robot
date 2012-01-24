@@ -1,0 +1,18 @@
+Java libraries for Amarino (AmarinoLibrary_v0_55.jar) & opencv (opencv-2.3.1.jar) are included in the libs directory. 
+A big thanks goes out to the authors: http://www.amarino-toolkit.net, http://opencv.willowgarage.com. 
+Include them in your Java build path in the Eclipse project properties. 
+Select "Google APIs 4.0.3 API 15" as a build target in the "Android" section of the Eclipse project properties.
+
+Optionally:
+Install OpenCV 2.3.1 for Android: http://opencv.willowgarage.com/wiki/
+Install the Android Native Development Kit: http://developer.android.com/sdk/ndk/index.html
+Make sure that both project directories reside in the same parent directory. The file includeOpenCV.mk links to the header files of the OpenCV project.
+Then run ndk-build in the project directory. You need to adjust the Java code, uncommenting the parts that run native code. Your mileage may vary. 
+
+Tested with 
+- a galaxy Nexus carrying Android 4.0.3 ICS
+- Android SDK & NDK 4.0.3 API 15: http://developer.android.com/sdk/
+- Eclipse Indigo Service Release 1: http://www.eclipse.org
+- Arduino IDE v. 0023: http://www.arduino.cc/
+- BT & ADK Arduino boards
+ 
