@@ -72,8 +72,8 @@ struct dist_dir {
 #ifdef USB_COMM
 
   AndroidAccessory acc("thomasriga.com",
-		     "CarBotVision",
-		     "CarBotVision",
+		     "AndroidRobot",
+		     "AndroidRobot",
 		     "1.0",
 		     "http://www.thomasriga.com",
 		     "0000000012345678");

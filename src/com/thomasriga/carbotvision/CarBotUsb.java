@@ -23,7 +23,7 @@ import android.util.Log;
 public class CarBotUsb extends Activity implements Runnable, CommChannel
 {
 	private static final String TAG = "CarBotVision";
-	private static final String ACTION_USB_PERMISSION = "com.google.android.DemoKit.action.USB_PERMISSION";
+	private static final String ACTION_USB_PERMISSION = "com.thomasriga.carbotvision.CarBotVision.action.USB_PERMISSION";
 	private UsbManager mUsbManager;
 	private PendingIntent mPermissionIntent;
 	private boolean mPermissionRequestPending;
