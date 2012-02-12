@@ -45,12 +45,12 @@ int dummy;
 #define FORWARD 0x6
 #define LESS 0x1
 #define MORE 0x2
-#define MIN_DIST_SIDES 50
-#define MIN_DIST_FRONT 60
+#define DISABLED 0
+#define MIN_DIST_SIDES 40
 #define MIN_PAN 10
 #define MAX_PAN 170
-#define MIN_TILT 10
-#define MAX_TILT 170
+#define MIN_TILT 20
+#define MAX_TILT 90
 #define STEP_PAN 1
 #define STEP_TILT 1
 #define NO_FACE 0x0
@@ -80,18 +80,10 @@ struct dist_dir {
 
 #endif
 
-int suggested_dir = NO_DIR;
-int suggested_tilt_dir = NO_DIR;
-Servo steer_servo;
-Servo esc_servo;
-Servo pan_servo;
-Servo tilt_servo;
-int curr_dir = STRAIGHT;
-int curr_vel = STOP;
-int curr_pan = 0;
-int curr_tilt = 0;
-int buttonState = 0;
-int potState = 0;
+Servo steer_servo, esc_servo, pan_servo, tilt_servo;
+int curr_dir = STRAIGHT, curr_vel = STOP, curr_pan = 0, curr_tilt = 0, buttonState = 0, potState = 0;
+int suggested_dir = NO_FACE, suggested_tilt_dir = NO_FACE, action_timer = 0, tilt_scan_dir = MORE, pan_scan_dir = MORE;
+unsigned long starttime, stoptime, diff;
 
 void setup() {
   Serial.begin(115200);
@@ -138,7 +130,6 @@ void setup() {
 
 void loop() 
 {
-  char tmp[20];
   //Serial.println("loop");
   buttonState = digitalRead(switchPin);
   potState = analogRead(potPin);
@@ -147,10 +138,33 @@ void loop()
     meetAndroid.receive();
   #endif
   
-  if(buttonState == 1) {
-    test();
+  int scan_duration = 200;
+  int drive_duration = 200;
+  
+  if(action_timer < scan_duration) {
+    //avoid_obstacles_1();
+    Serial.println("avoid obstacles");
+    avoid_obstacles_2(NO_DIR);
+     //test();
   }
-  else {
+  else if(action_timer <= (scan_duration + drive_duration)) {
+    if(action_timer == scan_duration) {
+      motor_stop();
+      steer_straight();
+      delay(1000);
+    }
+    Serial.println("detect faces");
+    detect_faces();
+    delay(80);
+    if(action_timer == (scan_duration + drive_duration)) {
+      action_timer = 0;
+      delay(1000);
+    }
+  }
+  action_timer++;
+}
+
+void detect_faces() {
     #ifdef USB_COMM
       byte msg[3];
       if (acc.isConnected()) {
@@ -162,6 +176,8 @@ void loop()
       }
       else {
         Serial.println("accessory disconnected");
+        suggested_dir = NO_FACE;
+        suggested_tilt_dir = NO_FACE;
       }
     #endif
     
@@ -173,8 +189,15 @@ void loop()
       pan_step(MORE);
     }
     else if(suggested_dir == NO_FACE) {
-      //pan(90);
+      if(max_pan()) {
+        pan_scan_dir = LESS;
+      }
+      else if(min_pan()) {
+        pan_scan_dir = MORE;
+      }
+      pan_step(pan_scan_dir);      
     }
+
     // tilt
     if(suggested_tilt_dir == FACE_UP) {
       tilt_step(LESS);
@@ -183,12 +206,16 @@ void loop()
       tilt_step(MORE);
     }
     else if(suggested_tilt_dir == NO_FACE) {
-      //pan(90);
+      if(max_tilt()) {
+        tilt_scan_dir = LESS;
+      }
+      else if(min_tilt()) {
+        tilt_scan_dir = MORE;
+      }
+      tilt_step(tilt_scan_dir);      
     }
-    delay(20);
-    //avoid_obstacles(STRAIGHT);
-  }
 }
+
 
 #ifdef BLUETOOTH_COMM
   void suggest_dir(byte flag, byte numOfValues)
@@ -201,12 +228,65 @@ void loop()
   }
 #endif
 
-void avoid_obstacles(int suggestion) {
+void avoid_obstacles_1() {
+  long left_ping_dist;
+  long srf04_dist;
+  long right_ping_dist;
   long ptime;
+  int steer_flag;
+  // left parallax ping
+  ptime = microsec_ping(leftPingPin);
+  left_ping_dist = microsec_to_cm(ptime);
+  // devantech srf04
+  ptime = microsec_srf04();
+  srf04_dist = microsec_to_cm(ptime);
+  // right parallax ping
+  ptime = microsec_ping(rightPingPin);
+  right_ping_dist = microsec_to_cm(ptime);
+  // avoid obstacles logic - reading the sonars frontal, left, right
+  // and react on a distance < 20 cm frontal & 30 cm on the sides
+  steer_flag = 0;
+  if(srf04_dist < 40) {
+    if(curr_dir == LEFT) {
+      steer_right();
+    }
+    else if(curr_dir == RIGHT) {
+      steer_left();
+    }
+    else if(left_ping_dist < right_ping_dist) {
+      steer_left();
+    }
+    else {
+      steer_right();
+    }
+    motor_backward();
+    delay(3000);
+  }
+  else if(left_ping_dist < right_ping_dist) {
+    if(left_ping_dist < 20) {
+      steer_right();
+      steer_flag = 1;
+    }
+    motor_forward();
+  }
+  else {
+    if(right_ping_dist < 20) {
+      steer_left();
+      steer_flag = 1;
+    }
+    if(steer_flag == 0) {
+      steer_straight();
+    }
+    motor_forward();
+  } 
+}
+
+void avoid_obstacles_2(int suggestion) {
+  long ptime, front_dist;
   int treshold = 20;
   struct dist_dir distances[3];
   char * tmp = (char *) malloc(sizeof(char) * 512);
-   
+  
   // left parallax ping
   ptime = microsec_ping(leftPingPin);
   distances[0].dist = microsec_to_cm(ptime);
@@ -215,19 +295,22 @@ void avoid_obstacles(int suggestion) {
   ptime = microsec_srf04();
   distances[1].dist = microsec_to_cm(ptime);
   distances[1].dir = STRAIGHT;
+  front_dist = distances[1].dist;
   // right parallax ping
   ptime = microsec_ping(rightPingPin);
   distances[2].dist = microsec_to_cm(ptime);
-  distances[2].dir = RIGHT;  
+  distances[2].dir = RIGHT; 
+ 
   // sort from minor to major distance
   qsort(distances, 3, sizeof(struct dist_dir), struct_cmp_by_dist);
   
-  sprintf(tmp, "A: %d (%ld), B: %d (%ld), C: %d (%ld)", distances[0].dir, distances[0].dist, distances[1].dir, distances[1].dist, distances[2].dir, distances[2].dist);
-  Serial.println(tmp);
-  
+  //sprintf(tmp, "A: %d (%ld), B: %d (%ld), C: %d (%ld)", distances[0].dir, distances[0].dist, distances[1].dir, distances[1].dist, distances[2].dir, distances[2].dist);
+  //Serial.println(tmp);
+   
   // check if minimum space is not available and then go backward
-  if((distances[0].dist < treshold) || (distances[1].dist < treshold) || (distances[2].dist < treshold)) {
-    if(curr_vel != BACKWARD) {
+  if(front_dist < MIN_DIST_SIDES) {
+  //if((distances[0].dist < MIN_DIST_SIDES) || (distances[1].dist < MIN_DIST_SIDES) || (distances[2].dist < MIN_DIST_SIDES)) {
+      Serial.println("minimum distance check positive");
       if(distances[0].dir == STRAIGHT) {
         steer_straight();
       }
@@ -238,12 +321,11 @@ void avoid_obstacles(int suggestion) {
         steer_right();
       }
       motor_backward();
-      delay(400);
-    }
+      delay(1500);
   }
   // determine forward direction
   else {
-    if(suggested_dir == NO_DIR) { // go where there is more space 
+    if(suggestion == NO_DIR) { // go where there is more space 
       if(distances[2].dir == STRAIGHT) {
         steer_straight();
       }
@@ -255,16 +337,17 @@ void avoid_obstacles(int suggestion) {
       } 
       motor_forward();
     }
+    /*
     else { // suggestion from phone
-      if(suggested_dir == LEFT) {
+      if(suggestion == LEFT) {
         steer_left();
         motor_forward();
       }
-      else if(suggested_dir == RIGHT) {
+      else if(suggestion == RIGHT) {
         steer_right();
         motor_forward();
       }
-      else if(suggested_dir == BACKWARD) {
+      else if(suggestion == BACKWARD) {
         steer_straight();
         motor_backward();
       }
@@ -274,9 +357,10 @@ void avoid_obstacles(int suggestion) {
       } 
       motor_forward();
     }
+    */
   }
   free(tmp);
-  delay(200);
+  delay(5);
 }
 
 void test() {
@@ -378,33 +462,46 @@ void steer_left() {
 }
 
 void motor_forward() {
+  Serial.println("forward");
+  if(curr_vel != FORWARD) {
     if(curr_vel == BACKWARD) {
       motor_stop();
     }
     esc_servo.write(90 + (potState / 50));
     curr_vel = FORWARD;
+  }
 }
 
 void motor_backward() {
+  Serial.println("backward");
+  /*
+  esc_servo.write(90);
+  delay(100);
+  //esc_servo.write(80);
+  esc_servo.write(90 - (potState / 50));
+  curr_vel = BACKWARD;
+  */
+  
+  if(curr_vel != BACKWARD) {
     if(curr_vel == FORWARD) {
       motor_stop();
     }
-    // extra 10 off
     esc_servo.write(90 - (potState / 50));
+    Serial.println("backward esc cmd sent");
     curr_vel = BACKWARD;
+  }
+  
 }
 
 void motor_stop() {
+  Serial.println("stop");
     if(curr_vel == FORWARD) {
-      esc_servo.write(0);
-      delay(400);
+      esc_servo.write(90);
+      delay(50);
+      esc_servo.write(40);
+      //action_timer = 100;
+      delay(1000);
     }
-    /*
-    else if(curr_vel == BACKWARD) {
-      esc_servo.write(180);
-      delay(200);
-    }
-    */
     esc_servo.write(90);
     delay(200);
     curr_vel = STOP;
@@ -431,6 +528,14 @@ void pan_step(int direction) {
   }
 }
 
+int max_pan() {
+  return (curr_pan == MAX_PAN);
+}
+  
+int min_pan() {
+  return (curr_pan == MIN_PAN);
+}
+  
 void tilt(int degrees) {
   int val = degrees;
   if(val > MAX_TILT) {
@@ -450,6 +555,14 @@ void tilt_step(int direction) {
   else {
     tilt(curr_tilt + STEP_TILT);
   }
+}
+
+int max_tilt() {
+  return (curr_tilt == MAX_TILT);
+}
+  
+int min_tilt() {
+  return (curr_tilt == MIN_TILT);
 }
 
 void led_bleep(int num, int interval, int pin) {

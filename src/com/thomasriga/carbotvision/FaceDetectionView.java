@@ -119,7 +119,7 @@ public class FaceDetectionView extends SurfaceView implements SurfaceHolder.Call
 						this.lastMessage = NO_FACE;
 						Log.i(this.getClass().getName(), "sent 0: NO FACE");
 						canvas.drawText("sent 0: NO FACE", 30, 30, paint);
-						speech.say("nessuno");
+						//speech.say("nessuno");
 						cmds[0] = NO_FACE;
 						cmds[1] = NO_FACE;
 						cmds[2] = NO_FACE;
