@@ -81,7 +81,7 @@ struct dist_dir {
 #endif
 
 Servo steer_servo, esc_servo, pan_servo, tilt_servo;
-int curr_dir = STRAIGHT, curr_vel = STOP, curr_pan = 0, curr_tilt = 0, buttonState = 0, potState = 0;
+int curr_dir = STRAIGHT, curr_vel = STOP, curr_pan = 0, curr_tilt = 0, buttonState = 0, potState = 0, lastPotState = 0, potChanged = 1;
 int suggested_dir = NO_FACE, suggested_tilt_dir = NO_FACE, action_timer = 0, tilt_scan_dir = MORE, pan_scan_dir = MORE;
 unsigned long starttime, stoptime, diff;
 
@@ -133,6 +133,13 @@ void loop()
   //Serial.println("loop");
   buttonState = digitalRead(switchPin);
   potState = analogRead(potPin);
+  potChanged = (potState != lastPotState);
+  lastPotState = potState;
+  Serial.println("potState");
+  Serial.println(potState);
+  Serial.println("potChanged");
+  Serial.println(potChanged);
+  //potState = 500;
   
   #ifdef BLUETOOTH_COMM
     meetAndroid.receive();
@@ -463,11 +470,13 @@ void steer_left() {
 
 void motor_forward() {
   Serial.println("forward");
-  if(curr_vel != FORWARD) {
+  if((curr_vel != FORWARD) || potChanged) {
     if(curr_vel == BACKWARD) {
       motor_stop();
     }
     esc_servo.write(90 + (potState / 50));
+    Serial.println("forward esc cmd sent");
+    Serial.println(90 + (potState / 50));
     curr_vel = FORWARD;
   }
 }
@@ -482,12 +491,13 @@ void motor_backward() {
   curr_vel = BACKWARD;
   */
   
-  if(curr_vel != BACKWARD) {
+  if((curr_vel != BACKWARD) || potChanged) {
     if(curr_vel == FORWARD) {
       motor_stop();
     }
     esc_servo.write(90 - (potState / 50));
     Serial.println("backward esc cmd sent");
+    Serial.println(90 - (potState / 50));
     curr_vel = BACKWARD;
   }
   
