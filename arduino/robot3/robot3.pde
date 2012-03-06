@@ -46,7 +46,6 @@ int dummy;
 #define LESS 0x1
 #define MORE 0x2
 #define DISABLED 0
-#define MIN_DIST_SIDES 40
 #define MIN_PAN 10
 #define MAX_PAN 170
 #define MIN_TILT 20
@@ -59,6 +58,8 @@ int dummy;
 #define FACE_CENTER 0x3
 #define FACE_UP 0x4
 #define FACE_DOWN 0x5
+long MIN_DIST_FRONT = 20l;
+long MIN_DIST_SIDES = 5l;
 
 struct dist_dir { 
     int dir;
@@ -139,7 +140,6 @@ void loop()
   Serial.println(potState);
   Serial.println("potChanged");
   Serial.println(potChanged);
-  //potState = 500;
   
   #ifdef BLUETOOTH_COMM
     meetAndroid.receive();
@@ -149,23 +149,22 @@ void loop()
   int drive_duration = 200;
   
   if(action_timer < scan_duration) {
-    //avoid_obstacles_1();
     Serial.println("avoid obstacles");
-    avoid_obstacles_2(NO_DIR);
+    avoid_obstacles(NO_DIR);
      //test();
   }
   else if(action_timer <= (scan_duration + drive_duration)) {
     if(action_timer == scan_duration) {
       motor_stop();
       steer_straight();
-      delay(1000);
+      delay(100);
     }
     Serial.println("detect faces");
     detect_faces();
-    delay(80);
+    delay(40);
     if(action_timer == (scan_duration + drive_duration)) {
       action_timer = 0;
-      delay(1000);
+      delay(100);
     }
   }
   action_timer++;
@@ -235,62 +234,9 @@ void detect_faces() {
   }
 #endif
 
-void avoid_obstacles_1() {
-  long left_ping_dist;
-  long srf04_dist;
-  long right_ping_dist;
+void avoid_obstacles(int suggestion) {
   long ptime;
-  int steer_flag;
-  // left parallax ping
-  ptime = microsec_ping(leftPingPin);
-  left_ping_dist = microsec_to_cm(ptime);
-  // devantech srf04
-  ptime = microsec_srf04();
-  srf04_dist = microsec_to_cm(ptime);
-  // right parallax ping
-  ptime = microsec_ping(rightPingPin);
-  right_ping_dist = microsec_to_cm(ptime);
-  // avoid obstacles logic - reading the sonars frontal, left, right
-  // and react on a distance < 20 cm frontal & 30 cm on the sides
-  steer_flag = 0;
-  if(srf04_dist < 40) {
-    if(curr_dir == LEFT) {
-      steer_right();
-    }
-    else if(curr_dir == RIGHT) {
-      steer_left();
-    }
-    else if(left_ping_dist < right_ping_dist) {
-      steer_left();
-    }
-    else {
-      steer_right();
-    }
-    motor_backward();
-    delay(3000);
-  }
-  else if(left_ping_dist < right_ping_dist) {
-    if(left_ping_dist < 20) {
-      steer_right();
-      steer_flag = 1;
-    }
-    motor_forward();
-  }
-  else {
-    if(right_ping_dist < 20) {
-      steer_left();
-      steer_flag = 1;
-    }
-    if(steer_flag == 0) {
-      steer_straight();
-    }
-    motor_forward();
-  } 
-}
-
-void avoid_obstacles_2(int suggestion) {
-  long ptime, front_dist;
-  int treshold = 20;
+  int treshold = 20, go_backward, x;
   struct dist_dir distances[3];
   char * tmp = (char *) malloc(sizeof(char) * 512);
   
@@ -302,7 +248,6 @@ void avoid_obstacles_2(int suggestion) {
   ptime = microsec_srf04();
   distances[1].dist = microsec_to_cm(ptime);
   distances[1].dir = STRAIGHT;
-  front_dist = distances[1].dist;
   // right parallax ping
   ptime = microsec_ping(rightPingPin);
   distances[2].dist = microsec_to_cm(ptime);
@@ -315,8 +260,22 @@ void avoid_obstacles_2(int suggestion) {
   //Serial.println(tmp);
    
   // check if minimum space is not available and then go backward
-  if(front_dist < MIN_DIST_SIDES) {
+  //if(front_dist < MIN_DIST_SIDES) {
   //if((distances[0].dist < MIN_DIST_SIDES) || (distances[1].dist < MIN_DIST_SIDES) || (distances[2].dist < MIN_DIST_SIDES)) {
+  go_backward = 0;
+  for(x = 0; x < 3; x++) {
+    if(distances[x].dir == STRAIGHT) {
+      if((distances[x].dist > 0) && (distances[x].dist < MIN_DIST_FRONT)) {
+        go_backward = 1;
+      }
+    }
+    else {
+      if((distances[x].dist > 0) && distances[x].dist < MIN_DIST_SIDES) {
+        go_backward = 1;
+      }
+    }
+  }
+  if(go_backward == 1) {
       Serial.println("minimum distance check positive");
       if(distances[0].dir == STRAIGHT) {
         steer_straight();
@@ -429,7 +388,7 @@ long microsec_srf04() {
   return pulseTime;
 }
 
-int microsec_ping(int pin) {
+long microsec_ping(int pin) {
   long pulseTime;
   pinMode(pin, OUTPUT);
   digitalWrite(pin, LOW);
@@ -444,7 +403,7 @@ int microsec_ping(int pin) {
 
 long microsec_to_cm(long microsec)
 {
-  return microsec / 29 / 2;
+  return microsec / 29l / 2l;
 }
 
 void steer_straight() {
@@ -476,28 +435,18 @@ void motor_forward() {
     }
     esc_servo.write(90 + (potState / 50));
     Serial.println("forward esc cmd sent");
-    Serial.println(90 + (potState / 50));
     curr_vel = FORWARD;
   }
 }
 
 void motor_backward() {
-  Serial.println("backward");
-  /*
-  esc_servo.write(90);
-  delay(100);
-  //esc_servo.write(80);
-  esc_servo.write(90 - (potState / 50));
-  curr_vel = BACKWARD;
-  */
-  
+  Serial.println("backward");  
   if((curr_vel != BACKWARD) || potChanged) {
     if(curr_vel == FORWARD) {
       motor_stop();
     }
     esc_servo.write(90 - (potState / 50));
     Serial.println("backward esc cmd sent");
-    Serial.println(90 - (potState / 50));
     curr_vel = BACKWARD;
   }
   
@@ -505,16 +454,16 @@ void motor_backward() {
 
 void motor_stop() {
   Serial.println("stop");
-    if(curr_vel == FORWARD) {
-      esc_servo.write(90);
-      delay(50);
-      esc_servo.write(40);
-      //action_timer = 100;
-      delay(1000);
-    }
+  if(curr_vel == FORWARD) {
     esc_servo.write(90);
-    delay(200);
-    curr_vel = STOP;
+    delay(50);
+    esc_servo.write(40);
+    //action_timer = 100;
+    delay(1000);
+  }
+  esc_servo.write(90);
+  delay(200);
+  curr_vel = STOP;
 }
 
 void pan(int degrees) {
