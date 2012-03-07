@@ -454,13 +454,13 @@ void motor_backward() {
 
 void motor_stop() {
   Serial.println("stop");
-  if(curr_vel == FORWARD) {
-    esc_servo.write(90);
-    delay(50);
-    esc_servo.write(40);
-    //action_timer = 100;
-    delay(1000);
-  }
+  //if(curr_vel == FORWARD) {
+  //  esc_servo.write(90);
+  //  delay(50);
+  //  esc_servo.write(40);
+  //  //action_timer = 100;
+  //  delay(1000);
+  //}
   esc_servo.write(90);
   delay(200);
   curr_vel = STOP;
