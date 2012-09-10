@@ -25,7 +25,24 @@ void setup() {
 } 
 
 void loop() {
-  long cm = 0, min_dist = 20;
+  unsigned long cm = 0;
+  int i;
+  int ret[];
+  cm = microsec_to_cm(microsec_srf04());
+  // HC-SR04 range: 2cm - 500cm; normalizing to 0-100
+  i = (int) cm / 5l;
+  ret = run_network(i);
+  if((ret[0] 
+  if(ret[0] > ret[1]) {
+    left_forward();
+  }
+  else {
+    left
+  }
+
+// best one until now
+void rotate_just_enough() {
+  unsigned long cm = 0, min_dist = 20;
   cm = microsec_to_cm(microsec_srf04());
   while(cm < min_dist) {
     if(dir_flag) {
@@ -46,7 +63,7 @@ void loop() {
 }
 
 void simple_3_way_max_dist() {
-  long msec1, msec2, msec3;
+  unsigned long msec1, msec2, msec3;
   all_blink(500);
   rotate_left_msec(500);
   msec1 = microsec_srf04();
@@ -79,7 +96,7 @@ void simple_3_way_max_dist() {
 }
 
 void test() { 
-  long msec, cm, wait;
+  unsigned long msec, cm, wait;
   msec = microsec_srf04();
   cm = microsec_to_cm(msec);
   wait = cm * 10;
@@ -98,8 +115,8 @@ void test() {
   rotate_right_msec(2000);
 }
 
-long microsec_srf04() {
-  long pulse_time;
+unsigned long microsec_srf04() {
+  unsigned long pulse_time;
   digitalWrite(trigger_pin, LOW);
   delayMicroseconds(2);
   digitalWrite(trigger_pin, HIGH);
@@ -109,7 +126,7 @@ long microsec_srf04() {
   return pulse_time;
 }
 
-long microsec_to_cm(long microsec)
+unsigned long microsec_to_cm(unsigned long microsec)
 {
   return microsec / 29l / 2l;
 }
