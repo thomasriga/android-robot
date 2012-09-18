@@ -25,24 +25,13 @@ void setup() {
 } 
 
 void loop() {
-  unsigned long cm = 0;
-  int i;
-  int ret[];
-  cm = microsec_to_cm(microsec_srf04());
-  // HC-SR04 range: 2cm - 500cm; normalizing to 0-100
-  i = (int) cm / 5l;
-  ret = run_network(i);
-  if((ret[0] 
-  if(ret[0] > ret[1]) {
-    left_forward();
-  }
-  else {
-    left
-  }
+  rotate_just_enough();
+}
 
 // best one until now
 void rotate_just_enough() {
   unsigned long cm = 0, min_dist = 20;
+  int rotated = 0;
   cm = microsec_to_cm(microsec_srf04());
   while(cm < min_dist) {
     if(dir_flag) {
@@ -52,6 +41,7 @@ void rotate_just_enough() {
       rotate_right_msec(50);
     }
     cm = microsec_to_cm(microsec_srf04());
+    rotated = 1;
   }
   if(dir_flag) {
     dir_flag = 0;
@@ -59,7 +49,21 @@ void rotate_just_enough() {
   else {
     dir_flag = 1;
   }
-  forward_msec(200);
+  if(!rotated) {
+    if(dir_flag) {
+      rotate_left_msec(200);
+    }
+    else {
+      rotate_right_msec(200);
+    }
+  }
+  cm = microsec_to_cm(microsec_srf04());
+  if(cm >= min_dist) {
+    forward_msec(200);
+  }
+  else if(cm < (min_dist/2)) {
+    backward_msec(400);
+  } 
 }
 
 void simple_3_way_max_dist() {
@@ -154,11 +158,11 @@ void backward_msec(int msec) {
 }
 
 void left_forward() {
-  left_servo.writeMicroseconds(1700);  
+  left_servo.writeMicroseconds(1300);  
 }
 
 void left_backward() {
-  left_servo.writeMicroseconds(1300);  
+  left_servo.writeMicroseconds(1700);  
 }
 
 void left_stop() {
@@ -166,11 +170,11 @@ void left_stop() {
 }
 
 void right_forward() {
-  right_servo.writeMicroseconds(1300);  
+  right_servo.writeMicroseconds(1700);  
 }
 
 void right_backward() {
-  right_servo.writeMicroseconds(1700);  
+  right_servo.writeMicroseconds(1300);  
 }
 
 void right_stop() {
