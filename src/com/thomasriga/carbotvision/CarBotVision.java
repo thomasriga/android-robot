@@ -31,6 +31,7 @@ public class CarBotVision extends CarBotUsb implements SurfaceHolder.Callback
 	private int orientation = 0;
 	public static int FACE_DETECTION = 1, CV_DETECTION = 2;
 	private int detectionType = FACE_DETECTION;
+    //private int detectionType = CV_DETECTION;
 	CommChannel commChannel;
 	BotSensors botSensors; 
 	
@@ -175,12 +176,12 @@ public class CarBotVision extends CarBotUsb implements SurfaceHolder.Callback
 	private void initCam()
 	{
 		commChannel.connect();
-		camSurfView = (SurfaceView)findViewById(R.id.surface_camera);
+        camSurfView = (SurfaceView)findViewById(R.id.surface_camera);
 		camSurfHolder = camSurfView.getHolder();
 		camSurfHolder.addCallback(this);
 		camSurfHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 		if(detectionType == FACE_DETECTION) {
-			faceDetectionView = (FaceDetectionView)findViewById(R.id.surface_overlay);
+			faceDetectionView = (FaceDetectionView)findViewById(R.id.facedetection_surface_overlay);
 			faceDetectionView.getHolder().setFormat(PixelFormat.TRANSLUCENT);
 		}
 		else if(detectionType == CV_DETECTION) {

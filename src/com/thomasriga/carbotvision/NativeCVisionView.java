@@ -96,7 +96,7 @@ public class NativeCVisionView extends SurfaceView implements SurfaceHolder.Call
 				        Rect src = new Rect(0, 0, (frameSize.width>>0)-1, (frameSize.height>>0)-1);
 						RectF dst = new RectF(0, 0, canvas.getWidth()-1, canvas.getHeight()-1);
 						canvas.drawBitmap(bmp, src, dst, paint);
-						
+						/*
 						int cx = 0;
 						if(cmds[0] > 0)
 							cx = canvas.getWidth() / (frameSize.width / cmds[0]);
@@ -105,7 +105,7 @@ public class NativeCVisionView extends SurfaceView implements SurfaceHolder.Call
 							cy = canvas.getHeight() / (frameSize.height / cmds[1]);
 						int cd = cmds[2];
 						canvas.drawCircle(cx, cy, cd, paint);
-						
+						*/
 						//canvas.drawCircle(cmds[0], cmds[1], cmds[2], paint);
 					}
 					finally
